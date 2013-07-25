@@ -30,8 +30,8 @@ SmartPayload::SmartPayload() {
 byte SmartPayload::requestIgnite(byte charge, boolean action, byte pos) {
   // assemble smart payload
   // needs to be a byte array
-  // full command format is IGrrqq
-  // where IG is 'ignite', rr is remote number, and qq is charge number
+  // full command format is IGrq
+  // where IG is 'ignite', r is remote number, and q is charge number
   
   // command ID (IG for ignite)
   byte payload[] = { 73, 71, charge, action}; // 73 = 'I', 71 = 'G'
