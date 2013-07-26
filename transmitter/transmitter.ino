@@ -41,9 +41,9 @@
        * timerServoTest
        * timerDisplayServo
        
-   * Numbers used in code start at zero, so Remote 1 AFK is Remote 0 in code.
+   * Numbers used in code start at zero, so Receiver 1 away from keyboard is Receiver 0 in code.
      They are converted to human readable numbers (R0 is now R1) right before being displayed.
-     * It's only Remote 1 to the user. It's actually Remote 0!!!
+     * It's only Receiver 1 to the user. It's actually Receiver 0!!!
 
   
   @todo
@@ -86,7 +86,7 @@ const byte led = 13;
 
 
 // CONFIG
-boolean debugMode = 0;
+boolean debugMode = 1;
 const byte lcdWidth = 16;                 // display width of LCD in characters
 const byte lcdHeight = 2;                 // display height of LCD in charaters
 const int splashTime = 50;                // time the splash text will display
@@ -165,15 +165,13 @@ char* menuOption[] = {
 
 // Firing Scripts
 char* firingScriptTitle[] = {
-  "Gas1",
-  "Gas2",
-  "Gas3",
-  "FOB1",
-  "FOB2",
-  "FOB3",
-  "Olympic1",
-  "Olympic2",
-  "Olympic3"
+  "Arty Taco1",
+  "Arty Taco2",
+  "Arty Taco3",
+  "Arty Olympic1",
+  "Arty Olympic2",
+  "Arty Olympic3",
+  "Olympic4"
 };
 
 
@@ -212,15 +210,15 @@ unsigned int receiverAddress[receiverCount + 1][2] = {     // (3) receivers, wit
 
 /*
  * Receiver types
- *   0 is dumb remote
- *   1 is smart remote
+ *   0 is dumb receiver
+ *   1 is smart receiver
  *   2 has yet to be invented
  *   3 has yet to be invented
  */
 uint8_t receiverType[receiverCount + 1] = {
   1,                                   // Receiver 0 (1) is a smart receiver
   1,                                   // Receiver 1 (2) is a smart receiver
-  0                                    // Receiver 2 (3) is a dumb receviver
+  1                                    // Receiver 2 (3) is a smart receviver
 };
 
 
@@ -249,16 +247,28 @@ byte rangeCheckCommand[] = {'N', 'D'}; // a harmless AT command to use to check 
  * 128 needs to be EOL delimeter
  * 
  */
-byte firingScript[][8] = {
-  {0,0,128},                         // Gas1
-  {0,1,128},                         // Gas2
-  {0,2,128},                         // Gas3
-  {1,0,128},                         // FOB1
-  {1,1,128},                         // FOB2
-  {1,2,128},                         // FOB3
-  {2,0,128},                         // Olympic1
-  {2,1,128},                         // Olympic2
-  {2,2,128}                          // Olympic3
+byte firingScript[][9] = {
+  {1,0,121,5,0,1,128},                 // Arty Taco1
+  {1,1,121,5,0,2,128},                 // Arty Taco2
+  {1,2,121,5,0,3,128},                 // Arty Taco3
+  
+  {1,3,121,5,2,0,128},                 // Arty Olympic1
+  {1,4,121,5,2,1,128},                 // Arty Olympic2
+  {1,5,121,5,2,2,128},                 // Arty Olympic3
+  {2,3,128}                            // Olympic4
+  
+//  {0,0,128},                         // Gas1
+//  {0,1,128},                         // Gas2
+//  {0,2,128},                         // Gas3
+//  {1,0,128},                         // FOB1
+//  {1,1,128},                         // FOB2
+//  {1,2,128},                         // FOB3
+//  {1,3,128},                         // FOB4
+//  {1,4,128},                         // FOB5
+//  {1,5,128},                         // FOB6
+//  {2,0,128},                         // Olympic1
+//  {2,1,128},                         // Olympic2
+//  {2,2,128}                          // Olympic3
 };
 
 
@@ -268,7 +278,7 @@ char* textFiring = "firing!";
 // INIT
 //
 
-uint8_t command[8] = {0};                      // initial payload contents. This is changed by the program.
+uint8_t command[24] = {0};                      // initial payload contents. This is changed by the program.
 
 SoftwareSerial nss(ssRx, ssTx);
 XBee xbee = XBee();
@@ -288,7 +298,7 @@ int timerNavLock = timer.setTimeout(3000, menuClearLock);
 
 Keypad kpd = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
-// create arrays capable of 99 (100) remotes and 2 (3) charges
+// create arrays capable of 99 (100) receivers and 2 (3) charges
 //byte chargeStatus;                            // stores DIO pin status
 //unsigned long chargeIgniteTime[99][2];      // stores the point in time the charge was ignited
 //unsigned long chargeDeactivateTime[99][2];  // stores time that DIO pin needs to go LOW
@@ -327,21 +337,6 @@ void setup() {
   menuDisplay();
   
   
-
-
- // When powered on, XBee radios require a few seconds to start up
- // and join the network.
- // During this time, any packets sent to the radio are ignored.
- // Series 2 radios send a modem status packet on startup.
- 
- // it took about 4 seconds for mine to return modem status.
- // In my experience, series 1 radios take a bit longer to associate.
- // Of course if the radio has been powered on for some time before the sketch runs,
- // you can safely remove this delay.
- // Or if you both commands are not successful, try increasing the delay.
- 
-// delay(5000);
-
 }
 
 void loop() {  
@@ -388,100 +383,6 @@ void menuDisplay() {
   lcd.setCursor(0, 1);
   lcd.print(firingScriptTitle[menuActive]);
 }
-
-
-//void rangeCheck() {
-//  // check remote 0
-//  //   if remote 0 in range
-//  //     display thumbsup
-//  
-//  lcd.setCursor(0, 0);
-//  lcd.print("checking ");
-//       
-//  memset(command, 0, sizeof(command));  // clear command array (@todo fix this dirty hack)
-//  
-//  command[0] = 82;  // R
-//  command[1] = 65;  // A
-//  command[2] = 128; // 128 is our end-of-line delimiters
-//  
-//  for (int r=0; r < sizeof(receiverCount); r++) {
-//    lcd.setCursor(8, 0);
-//    lcd.print(r);
-//    nss.print("rangecheck:");
-//    nss.println(r);
-//    
-//    address64.setMsb(receiverAddress[r][0]);
-//    address64.setLsb(receiverAddress[r][1]);
-//    zbTx.setAddress64(address64);
-//
-//    // send the payload
-//    nss.println(" )) range chk"); 
-//    xbee.send(zbTx);
-    
-    
-    
-    
-//    
-//    nss.println("set addr");
-//    // set address of receiver
-//    address64.setMsb(receiverAddress[r][0]);
-//    address64.setLsb(receiverAddress[r][1]);
-//    remoteAtRequest.setRemoteAddress64(address64);
-//        
-//    nss.println("set cmd");
-//    // set the command 
-//    remoteAtRequest.setCommand(rangeCheckCommand);
-//    //sremoteAtRequest.setCOmmandValueLength(sizeof(rangeCheckCommand));
-//  
-//    // send command
-//    nss.println("send cmd");
-//    xbee.send(remoteAtRequest);  
-//    
-//    nss.println("read pack");
-//    if (xbee.readPacket(5000)) {
-//      // got response
-//      
-//      nss.println("got resp");
-//      if (xbee.getResponse().getApiId() == REMOTE_AT_COMMAND_RESPONSE) {
-//        xbee.getResponse().getRemoteAtCommandResponse(remoteAtResponse);
-//        
-//        if (remoteAtResponse.isOk()) {
-//          lcd.setCursor((10 + r), 0);
-//          lcd.print(r);        
-//          nss.println("is ok");
-//          
-//          if (remoteAtResponse.getValueLength() > 0) {
-//            nss.print("command val len:");
-//            nss.println(remoteAtResponse.getValueLength(), DEC);
-//            
-//            nss.print("cmd val:");
-//            
-//            for (int i = 0; i < remoteAtResponse.getValueLength(); i++) {
-//              nss.print(remoteAtResponse.getValue()[i], HEX);
-//              nss.print(" ");
-//            }
-//            nss.println();
-//          }
-//        } else {
-//          // not ok (fail)
-//          nss.println("not ok");
-//          lcd.setCursor((10 + r), 0);
-//          lcd.print("-");
-//        }
-//          
-//      } else {
-//        nss.print("err:");
-//        nss.println(remoteAtResponse.getStatus(), HEX);
-//      }
-//    } else if (xbee.getResponse().isError()) {
-//      nss.print("error:");
-//      nss.println(xbee.getResponse().getErrorCode());
-//      
-//    } else {
-//      nss.println("no response");
-//    }
-//  }
-//}
 
 
 /*
@@ -548,27 +449,7 @@ void xbeeCheckRx() {
           //nss.println("faile");
         }
         break;
-        
-        //@todo delete
-//      case ZB_RX_RESPONSE:
-//        // We got a receive packet (0x91)
-//        // @todo delete this case. I don't think the transmitter will get this type of packet.
-//        nss.println("--> receive pakcet");
-//        
-//        // fill our zbRxResponse object
-//        xbee.getResponse().getZBRxResponse(rx);
-//        
-//        // Get some ACK & RSSI readings from packet received
-//        nss.println(xbee.getResponse().getApiId(), HEX);
-//
-//        //lcd.setCursor(10, 0);
-//        //nss.print("remote address:");
-//        //nss.println(rx.getRemoteAddress64().getMsb());
-// 
-//        // clear the zbRxResponseonse packet
-//        // zbRxResponse.clearCommandValue();
-//        break;
-        
+             
       case 0x91:
         // zb explicit tx api frame (0x91) (unsupported)
         nss.println("xplicit tx api frame");
@@ -589,9 +470,8 @@ void xbeeCheckRx() {
 }
 
 /*
- * Set the status of a charge.
- * For dumb receivers only.
- * @param byte remote is the remote number to set
+ * Set the status of a charge either on or off. For dumb receivers only.
+ * @param byte receiver is the receiver number to set
  * @param byte charge is the charge number to set
  * @param bool status sets the status. 1 is DIO HIGH (ignite), 0 is DIO LOW (off)
  */
@@ -635,19 +515,7 @@ void setCharge(byte receiver, byte charge, bool setStatus) {
       nss.println("send remAT req");
       nss.println("  send pay");
       xbee.send(remoteAtRequest);
-      // set ignite time to now  
-      //chargeIgniteTime[receiver][charge] = millis();
-    
-      // set charge status to 1
-      //chargeStatus[receiver][charge] = 1;
-    
-      
-      // set ignite time to now
-      // chargeIgniteTime[remote][charge] = millis();
-  
-      // set charge status to 1
-      //  chargeStatus[remote][charge] = 1;
-  
+
     
       
     } else {
@@ -660,7 +528,7 @@ void setCharge(byte receiver, byte charge, bool setStatus) {
       remoteAtRequest.setCommandValueLength(sizeof(chargePinLow));
   
       // send command
-      //nss.println("Sending remote at request.");
+      //nss.println("Sending remote AT request.");
       nss.println("   send pay");
       xbee.send(remoteAtRequest);  
     }
@@ -678,107 +546,13 @@ void setCharge(byte receiver, byte charge, bool setStatus) {
   }
 }
       
-      
-///*
-// * HARD CODED TEST FUNCTION! @todo remove this function with the smartFireActual function
-// */
-//void smartFireTest(byte scriptNumber) {
-//  nss.println("  smartfire called");
-//  
-//  command[0] = 70;  // F
-//  command[1] = 83;  // S   
-//  
-//  command[2] = 1;   // 
-//  command[3] = 0;   //
-//  
-//  command[4] = 1;   
-//  command[5] = 1;   
-//  
-//  command[6] = 1;
-//  command[7] = 2;
-//  
-//  command[8] = 128;
-//  
-//  //nss.print("set address");
-//  address64.setMsb(receiverAddress[1][0]);
-//  address64.setLsb(receiverAddress[1][1]);
-//  zbTx.setAddress64(address64);
-//  
-//  // debug console 
-//  nss.println("send 2 rec 1");
-//  
-//  nss.print("smart cmd: ");
-//  for (int ch = 0; ch < sizeof(command); ch++) {
-//    nss.print(command[ch]);
-//    nss.print(",");
-//  }
-//  nss.print(command[sizeof(command)]);
-//  nss.println(".");
-//  
-//  xbee.send(zbTx);
-//  
-//
-//}  
-      
-      
-// legacy stuff for leacy stuff. @todo delete me      
-//void smartSet(byte derp) {
-// // update the object with the correct target address
-//    zbTx.setAddress64(address64);
-//    // @todo thumbs up icon for ACK
-//    
-//    if(setStatus) {
-//      // we're activating
-//      nss.print("smartpay: ");
-//      nss.println(smartPayload.requestIgnite(charge, 1, 1));
-//      
-//      // chunk-of-payload = chunk of smartpayload
-//      command[0] = smartPayload.requestIgnite(charge, 1, 0);    
-//      command[1] = smartPayload.requestIgnite(charge, 1, 1);    
-//      command[2] = smartPayload.requestIgnite(charge, 1, 2);    
-//      command[3] = smartPayload.requestIgnite(charge, 1, 3);    
-//   
-//    } else {
-//      // we're de-activating
-// 
-//      command[0] = smartPayload.requestIgnite(charge, 0, 0);    
-//      command[1] = smartPayload.requestIgnite(charge, 0, 1);    
-//      command[2] = smartPayload.requestIgnite(charge, 0, 2);    
-//      command[3] = smartPayload.requestIgnite(charge, 0, 3);      
-//    }
-//        
-//    // debug console
-//    nss.print("command: ");
-//    for (int character = 0; character < sizeof(command); character++) {
-//      nss.print(command[character]);
-//      nss.print(",");
-//    }
-//    nss.print(command[sizeof(command)]);
-//    nss.println(".");
-//    
-//    // send the payload    
-//    xbee.send(zbTx);
-//      
-//    break;  // out of smart receiver case
-//
-//}  
-      
-      
-      
 /*
- * Sends fire script commands to smart receivers.
- * 
- * @param int mode the two character mode ID for the desired command ex: 7083 (FS)
- * @param scriptNumber
- */      
-//void smartCommand(int mode = 7083, byte scriptNumber = 0) {
-//  
-//  command[0] = mode / 100;  // ex: 7083 #> 70
-//  command[1] = mode % 100;  // ex: 7083 #> 83
-//  
-//  
-//}  
-            
+ * smartClear sends a messge to smart receivers, essentially saying, "clear everything."
+ * It is "smart" in the sense that it only has to send one message to
+ * the receivers which tells the receivers what to do. The "dumb" version of this is telling
+ * the receiver, "R1-0 off. R1-1 off. R1-2 off. R1-3 off." whereas this smart version says, "turn everything off."
+ * Only smart receivers support this type of clearing.
+ */
 void smartClear() {
   
   memset(command, 0, sizeof(command));  // clear command array (@todo fix this dirty hack)
@@ -805,57 +579,56 @@ void smartSize() {
 }
 
 
-
+/*
+ * smartFire validates a firing script set in the firingScript array,
+ * then determines what to do with the commands in the script.
+ * a command payload is assembled and stored as a char array in 'command'
+ * Finally, the command is broadcast via the XBee to all XBees in the same PAN
+ *
+ * @param byte scriptNumber the script number from the 'firingScript' array
+ */
 void smartFire(byte scriptNumber) {
-  // set the first two bytes of the command string
-  // @todo make this set dynamically so it works for commands other than 'FS' (?)
+  //ccc
   
+  // The first two characters of our command payload are 'FS' which is an identifier of
+  // the type of command we are sending. 'FS' tells the receiver that this command
+  // is a Fire Script command.
+  // @todo make this set dynamically so it works for commands other than 'FS' (?)
   command[0] = 70;  // F
   command[1] = 83;  // S
   
-  
-// STATE ENGINE
   nss.println("fire script");
-// if(menuActive == (sizeof(firingScriptTitle)/sizeof(firingScriptTitle[0]) - 1)) {
-  
-//  nss.print("size compoz:");
-//  nss.println((sizeof(firingScript)/sizeof(firingScript[0])));
-//  
-//  nss.print("size overall");
-//  nss.println(sizeof(firingScript));
-//  
-//  nss.print("size jusone:");
-//  nss.println(sizeof(firingScript[0]));
 
-  for (int character = 0; character < sizeof(firingScript[scriptNumber]); character++) {
+  for (int charPos = 0; charPos < sizeof(firingScript[scriptNumber]); charPos++) {
     // sizeof(firingScript[0]) will equal x: firingScript[][x]
-    // iterate through characters of firingScripts
-
-        
-    
-    if (firingScript[scriptNumber][character] == 128) {
-      // if character is 128 stop checking this script and go to next script
-      // 128 is an EOL delimeter
+    // Here we are going through each char of the selected firingScripts array.
+    // i.e. we are figuring out what the firing script is telling us to do.
+    // we will see a receiver number follwed by a charge number,
+    // or a special designator (a number above 100) which tells us to pause.
+          
+    if (firingScript[scriptNumber][charPos] == 128) {
+      // if the char we are lookig at is 128, stop checking this script.
+      // 128 is an end-of-line (EOL) designator
       
-      // add the delimeter to the command payload
+      // add the EOL designator to the command payload
       // offset by +2 because the first two of command payload are 'F' and 'S'
-      command[character+2] = 128;
-      break;  // stop adding characters because 128 indicated the end of the script
+      command[charPos+2] = 128;
+      break;  // stop adding chars because 128 indicated the end of the script
       
     } else {
-      // character is not 128
+      // char is not 128
       // add the number to the command payload
       // offset by +2 because the first two of command payload are 'F' and 'S'
       
-      nss.print(" character");
-      nss.print(character);
-      nss.print(": ");
-      nss.println(firingScript[scriptNumber][character]);
+      nss.print("charPos:");
+      nss.print(charPos);
+      nss.print(" character:");
+      nss.println(firingScript[scriptNumber][charPos]);
       
       // @todo this line causes a crash when either writing command[24] or accessing firingScript[scriptNumber][24]
       //       worked around for now by preventing it from writing to [24]
-      if (character < 22) {
-        command[character+2] = firingScript[scriptNumber][character];
+      if (charPos < 22) {
+        command[charPos+2] = firingScript[scriptNumber][charPos];
         
       } else {
         nss.println("Cmd too long. All FS must end in 128");
@@ -870,24 +643,27 @@ void smartFire(byte scriptNumber) {
   // @todo either make this a broadcast, or determine
   //       which receivers actually need the orders
   //       (If R3 is not in the fire script, send just to R1 & R2)
-//    address64.setMsb(receiverAddress[r][0]);
-//    address64.setLsb(receiverAddress[r][1]);
+  //    address64.setMsb(receiverAddress[r][0]);
+  //    address64.setLsb(receiverAddress[r][1]);
   
   address64.setMsb(0x00000000);
   address64.setLsb(0x0000FFFF);
   zbTx.setAddress64(address64);
 
 
-  // send the payload   
+  // send the payload
   nss.println("   send pay"); 
   xbee.send(zbTx);
 //   state1: look for two numbers each < 100
 //   found number > 128?
 //     state2: observe number
-//     if 120, 
+//     if 120,
 }
 
-
+/*
+ * fireScript function. Legacy "dumb" receiver scripted ignition and de-activation
+ * @param byte scriptNumber the number of the dumb receiver fire script
+ */
 void fireScript(byte scriptNumber) {
   switch(scriptNumber) {
     case 0:
@@ -1022,47 +798,6 @@ void fireScript(byte scriptNumber) {
 }
 
 
-///*
-// * Asks the user if they are sure they want to execute the action.
-// * Accepts a fireScript number as a parameter
-// * if parameter -1 is given, function will
-// * return 1 if user has been asked if they're sure
-// * return 0 if user has not been asked if they're sure
-// * 
-// * @param scriptNum byte
-// * @return boolean
-// */
-//boolean menuDecision(char scriptNum) {
-//  
-//  if(scriptNum > 0) {
-//    // ask user if they're sure
-//    notify1(firingScriptTitle[scriptNum]);
-//    notify2("Are you sure?");
-//    
-//    nss.println("LL ARE YOU SURE?");
-//    
-//    // set the global variable to show that the user has a big choice to make
-//    // (during this time, the user shouldn't be able to navigate, only choose yes or no)
-//    bigChoice = 1;
-//    
-//  } else {
-//    nss.print("LL just checking:");
-//    // return a value so the code calling this function knows if
-//    // if the user has a big choice to make
-//    
-//    if(bigChoice == 1) {
-//      // user has to make a choice
-//      nss.println("user has to decide");
-//      return 1;
-//      
-//    } else {
-//      // user does not have to make a choice
-//      nss.println("user not have choice");
-//      return 0;
-//    }
-//  }
-//}
-
 /*
  * Displays a little padlock showing that the controls are locked
  */
@@ -1176,7 +911,7 @@ void navigateMenu(char navInput) {
         //fireScript(menuActive);
         //nss.println("LL unlocking nav");
         notify1(textFiring);
-        smartFire(menuActive);        
+        smartFire(menuActive);
         navLock = 0;
         bigChoice = 0;
         notify1(menuOption[0]);
@@ -1245,23 +980,19 @@ void keypadCheck(){
                
         case 'A':
           // if A is pressed, do stuff
-          //rangeCheck();
           break;
         
         case 'B':
           // if B is pressed, do stuff
-          //fireScript(5);
           break;
           
         case 'C':
           // if C is pressed, do stuff
-          fireScript(9);
+          smartClear();
           break;
         
         case 'D':
           // if D is pressed, do stuff
-          //nss.println("FIRING EXPERIMENTAL!");
-          //fireScript(5);
           break;
       
         case '*':
