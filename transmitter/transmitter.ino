@@ -285,7 +285,7 @@ XBee xbee = XBee();
 XBeeAddress64 address64 = XBeeAddress64(receiverAddress[0][0], receiverAddress[0][1]);  // SH + SL of your receiver radio
 RemoteAtCommandRequest remoteAtRequest = RemoteAtCommandRequest(address64, chargePinCommand[0], chargePinLow, sizeof(chargePinLow));  // Create a remote AT request with the IR command
 RemoteAtCommandResponse remoteAtResponse = RemoteAtCommandResponse();                                             // Create a Remote AT response object
-ZBTxRequest zbTx = ZBTxRequest(address64, command, 4);  // address, payload, size
+ZBTxRequest zbTx = ZBTxRequest(address64, command, 24);  // address, payload, size
 ZBTxStatusResponse txStatus = ZBTxStatusResponse();
 SmartPayload smartPayload = SmartPayload();
 

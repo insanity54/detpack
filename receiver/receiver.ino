@@ -66,6 +66,7 @@ uint8_t chargePin[] = { 2, 3, 4, 5, 6, 7}; // charges
 byte me = 2; // zero-index of this receiver's number. @todo make this automatic. see below or search for, "automatic receiver id"
 //boolean debugMode = 0;
 //unsigned int ignitionHold = 2000;           // pause time after igntion before DIO pin goes back LOW
+byte commandLen = 24;  // length of command payload.
 
 // INIT
 byte shCmd[] = {'S', 'H'};  // serial high
@@ -78,6 +79,31 @@ XBeeResponse response = XBeeResponse();
 ZBRxResponse rx = ZBRxResponse();
 ModemStatusResponse msr = ModemStatusResponse();
 SimpleTimer timer;
+
+
+struct order {
+  int type;              // holds command payload type
+  byte state;            // parsing state machine current state
+  byte delayMult;        // delay multiplier for converting delay times to milliseconds
+};
+  
+order order0 = {0, 0, 0};
+
+int orderList[24][3] = {
+  {0, 0, 1},
+  {0, 1, 1},
+  {0, 2, 1},
+  {0, 3, 1},
+  {0, 4, 1},
+  {0, 5, 1},
+  {0, 6, 1}
+};
+
+long orderTime[24] = {
+  0,
+  5
+};
+
 //byte supportedCommands[2][2] = {
 //  {'I', 'G'}, // Ignite. Ignites the specified receiver immediately
 //  {'F', 'S'}, // Fire Script. Accepts firing orders and waits for GO
@@ -155,7 +181,7 @@ void xbeeCheck(){
       nss.println();
       
       // parse that data!
-      parseData();
+      smartParse();
 
       
     } else if (xbee.getResponse().getApiId() == MODEM_STATUS_RESPONSE) {
@@ -308,6 +334,168 @@ void setCharge(byte charge, bool setStatus) {
     // de-activating
     digitalWrite(charge[chargePin], LOW);
   }
+}
+
+
+
+
+
+
+
+void smartParse() {
+  // State machine
+  // looking for: 0 = first char of payload type
+  //              1 = second char of payload type
+  //              2 = receiver number or special command
+  //              3 = charge number
+  //              4 = special command parameter
+  //              5 = ignore this value
+  
+  // while there are chars to parse
+  byte charPos = 0;
+  while ( charPos < commandLen ) {
+    int inspectChar = rx.getData(charPos);
+    
+    switch (order0.state) {
+    case 0:
+      nss.println("|| state0");
+      // looking for first char of payload type
+      order0.type = inspectChar;
+      order0.state = 1;  // go to next state
+      break;
+      
+    case 1:
+      nss.println("|| state1");
+      // looking for the second char of payload type
+      order0.type = order0.type * 100 + inspectChar;
+      
+      // determine payload type
+      switch (order0.type) {
+      case 6865:
+        // DA - De-Activate
+        break;
+          
+      case 7083:
+        // FS - Fire Script
+        break;
+        
+      default:
+        // unrecognized payload type
+        nss.println("unsupp. type");        
+      } // end of switch
+      
+      order0.state = 2;  // go to next state
+      break;
+      
+      
+    case 2:
+      nss.println("|| state2");
+      // looking for receiver number or special command
+      
+      if ( inspectChar < 100 ) {
+        // character is less than 100 so it's got to be a receiver number,
+        // not a special command (special commands are numbers above 100)
+        
+        if ( inspectChar == me ) {
+          // if character is my receiver number
+          
+          // move to next state in which we will treat the next
+          // character as a charge number
+          order0.state = 3;
+          
+        } else {
+          // character is less than 100 but it's not my number.
+          // we need to ignore this and the next character.
+          order0.state = 5;
+        }
+        
+      } else {
+        // character is greater than 100 so it's got to be a
+        // special command.
+        
+        switch ( inspectChar ) {
+        // find what special command has been issued
+
+        case 128:
+          // end of line. stop parsing.
+          charPos = commandLen;
+          break;
+          
+        case 120:
+          // delay time will be mlliseconds
+          order0.delayMult = 1;
+          order0.state = 4;
+          break;
+          
+        case 121:
+          // delay time will be seconds
+          order0.delayMult = 1000;
+          order0.state = 4;
+          break;
+          
+        case 122:
+          // delay time will be minutes
+          order0.delayMult = 60000;
+          order0.state = 4;
+          break;
+          
+        default:
+          // unrecognized/unsupported special command type
+          nss.println("unsupp cmd type");
+          
+          
+        } // end of switch
+      }   // end of else
+      
+      break;
+      
+      
+    case 3:
+      nss.println("|| state3");
+      // looking for charge number
+      
+      // add charge number to order list
+      orderList[0][0] = inspectChar; // @todo find out where x comes from
+      
+      // find out what our next character is
+      order0.state = 2;
+      
+      break;
+      
+      
+    case 4:
+      nss.println("|| state4");
+      // looking for special command parameter
+      
+      // convert the time to milliseconds depending on the time unit (millis, seconds, minutes)
+      // that we gathered from state 2. Store in our ordertime list
+      orderTime[0] = inspectChar * order0.delayMult;
+      
+      // find out what our next character is
+      order0.state = 2;     
+      break;
+      
+      
+    case 5:
+      nss.println("|| state5");
+      // looking for nothing; we are ignoring this value.
+      // we are ignoring because the value is not meant for us.
+      // Most likely we picked up this value from a transmitter broadcast, 
+      // and the value is a different receiver number.
+      
+      order0.state = 2;  // set us up to look at next character
+      break;
+      
+    } // end of state machine switch
+    
+    charPos ++; 
+  }   // end of while loop
+      
+      
+      
+          
+      
+     
 }
 
 /*
