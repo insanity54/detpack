@@ -54,6 +54,7 @@
 #include <XBee.h>
 #include <SoftwareSerial.h>
 #include <SimpleTimer.h>
+#include "Order.h"
 
 
 // PIN CONNECTIONS
@@ -65,8 +66,9 @@ uint8_t chargePin[] = { 2, 3, 4, 5, 6, 7}; // charges
 // CONFIG
 byte me = 1; // zero-index of this receiver's number. @todo make this automatic. see below or search for, "automatic receiver id"
 //boolean debugMode = 0;
-//unsigned int ignitionHold = 2000;           // pause time after igntion before DIO pin goes back LOW
-byte commandLen = 24;  // length of command payload.
+unsigned int ignitionHold = 4000;           // pause time after igntion before DIO pin goes back LOW
+const byte commandLen = 48;  // length of command payload.
+const byte orderLen = 24;    // length of locally stored order lists
 
 // INIT
 byte shCmd[] = {'S', 'H'};  // serial high
@@ -78,21 +80,21 @@ AtCommandResponse atResponse = AtCommandResponse();
 XBeeResponse response = XBeeResponse();
 ZBRxResponse rx = ZBRxResponse();
 ModemStatusResponse msr = ModemStatusResponse();
-SimpleTimer timer;
-unsigned long startTime;
+//SimpleTimer timer;
+Order order1 = Order(orderLen);
 
 
-struct order {
-  int type;              // holds command payload type
-  byte state;            // parsing state machine current state
-  byte mark;             // mark showing the current parse position
-  byte delayMult;        // delay multiplier for converting delay times to milliseconds
-  unsigned long timeline;// keeps track of time between actions 
-};
+//struct order {
+//  int type;              // holds command payload type
+//  byte state;            // parsing state machine current state
+//  byte mark;             // mark showing the current parse position
+//  byte delayMult;        // delay multiplier for converting delay times to milliseconds
+//  unsigned long timeline;// keeps track of time between actions 
+//};
   
-order order0 = {0, 0, 0};
+//order order0 = {0, 0, 0, 0, 0};
 
-int actionList[24][2] = {
+int actionList[orderLen][2] = {
   {0, 1},  // charge number, activate (1) or de-activate (0)
   {1, 1},
   {2, 1},
@@ -119,7 +121,7 @@ int actionList[24][2] = {
   {5, 0},
 };
 
-long actionTime[24] = {
+long actionTime[orderLen] = {
   1000,    // time in ms
   1000,
   2000,
@@ -146,7 +148,7 @@ long actionTime[24] = {
   20000,
 };
 
-boolean actionEnable[24]; // = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+boolean actionEnable[orderLen] = {0}; // = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 
 //byte supportedCommands[2][2] = {
 //  {'I', 'G'}, // Ignite. Ignites the specified receiver immediately
@@ -185,7 +187,8 @@ void setup() {
 void loop() {
   // check xbee for commands
   xbeeCheck();
-  timer.run();
+  //timer.run();
+  processOrder();
   //testAction();
 }
 
@@ -272,58 +275,59 @@ void xbeeCheck(){
 // ccc
 void processOrder() {
   // iterate through rows of the action lists
-  for ( int row = 0; row < commandLen; row ++ ) {
+  for ( int row = 0; row < orderLen; row ++ ) {
     // @todo a possible performance optimization here is that we don't go
     // to the next row until the previous row has been executed.
     
-    if ( actionEnable[row] ) {
+    if ( actionEnable[ row ] ) {
       // if action is enabled on this row
       
-      // @todo we need a startTime reference point from the time that parsing completed.
-      if ( millis() - startTime >= actionTime[row] ) {
+      if ( millis() - order1.getStartTime() >= actionTime[ row ] ) {
         // if it is time to carry out the order on this row
       
         // ignite or de-activate charge depending on what the list is telling us to do
-        setCharge(actionList[row][0], actionList[row][1]);
+        setCharge( actionList[ row ][ 0 ], actionList[ row ][ 1 ] );
+        nss.print( "culprit:" );
+        nss.println( row );
         
         // disable action so we don't repeat
-        actionEnable[row] = 0;
+        actionEnable[ row ] = 0;
         
       } 
     }
   }
 }
 
-void testAction() {
-  
-  // iterate through rows of the lists
-  for ( int row = 0; row < 24; row ++ ) {  
-    
-    //nss.print("milli");
-    //nss.print(millis());
-    
-    //nss.print(" | iter");
-    //nss.print(row);
-    
-    //nss.print(" | act");
-    //nss.print(act[row]);
-      
-    if ( actionEnable[row] ) {
-      // if we need to act
-    
-      // @todo we need a startTime reference point from the time that parsing completed.
-      if ( millis() >= actionTime[row] ) {
-        // it's time to take action
-        
-        setCharge(actionList[row][0], actionList[row][1]);
-        
-        // we've acted, so don't act next time
-        actionEnable[row] = 0;
-      }
-    }
-    //nss.println();
-  }
-}
+//void testAction() {
+//  
+//  // iterate through rows of the lists
+//  for ( int row = 0; row < 24; row ++ ) {  
+//    
+//    //nss.print("milli");
+//    //nss.print(millis());
+//    
+//    //nss.print(" | iter");
+//    //nss.print(row);
+//    
+//    //nss.print(" | act");
+//    //nss.print(act[row]);
+//      
+//    if ( actionEnable[row] ) {
+//      // if we need to act
+//    
+//      // @todo we need a startTime reference point from the time that parsing completed.
+//      if ( millis() >= actionTime[row] ) {
+//        // it's time to take action
+//        
+//        setCharge(actionList[row][0], actionList[row][1]);
+//        
+//        // we've acted, so don't act next time
+//        actionEnable[row] = 0;
+//      }
+//    }
+//    //nss.println();
+//  }
+//}
 
 
 
@@ -372,59 +376,59 @@ void testAction() {
 //  return me[0];
 //}
 
-/*
- * Parses the data from the transmitter
- * validates the data
- * and processes it accordingly.
- */
-void parseData() {
-  // find the command id
-  // exec the first set
-  // find the second set
-  // find the third set
-  
-  // find command id
-  int commandId;
-  commandId = rx.getData(0);
-  commandId = commandId * 100 + rx.getData(1); // concatenate data0 with data1
-  nss.print("commandId:");
-  nss.println(commandId);
-  
-  // find first set
-  byte pak[2] = {0};
-  pak[0] = rx.getData(2);
-  pak[1] = rx.getData(3);
-  
-  switch (commandId) {
-  case 6865:
-    // 'DA' De-activate command
-    nss.println("de-activating");
-    for (byte charge = 0; charge <= sizeof(chargePin); charge++) {
-      setCharge(charge, 0);
-    }
-    break;    
-    
-  case 7083:
-    // 'FS' Fire Script command
-    nss.print(">> FS:");
-    nss.print(pak[0]);
-    nss.print(",");
-    nss.println(pak[1]);
-    
-    if (pak[0] == me) {
-      setCharge(pak[1], 1); // set the charge number HIGH
-      nss.print("ignite:");
-      nss.println(pak[1]);
-    }
-    break;
-    
-  default:
-    // Unsupported command
-    nss.print("unsuportd cmd");
-
-    // @todo add more modes. Fun!
-  }
-}
+///*
+// * Parses the data from the transmitter
+// * validates the data
+// * and processes it accordingly.
+// */
+//void parseData() {
+//  // find the command id
+//  // exec the first set
+//  // find the second set
+//  // find the third set
+//  
+//  // find command id
+//  int commandId;
+//  commandId = rx.getData(0);
+//  commandId = commandId * 100 + rx.getData(1); // concatenate data0 with data1
+//  nss.print("commandId:");
+//  nss.println(commandId);
+//  
+//  // find first set
+//  byte pak[2] = {0};
+//  pak[0] = rx.getData(2);
+//  pak[1] = rx.getData(3);
+//  
+//  switch (commandId) {
+//  case 6865:
+//    // 'DA' De-activate command
+//    nss.println("de-activating");
+//    for (byte charge = 0; charge <= sizeof(chargePin); charge++) {
+//      setCharge(charge, 0);
+//    }
+//    break;    
+//    
+//  case 7083:
+//    // 'FS' Fire Script command
+//    nss.print(">> FS:");
+//    nss.print(pak[0]);
+//    nss.print(",");
+//    nss.println(pak[1]);
+//    
+//    if (pak[0] == me) {
+//      setCharge(pak[1], 1); // set the charge number HIGH
+//      nss.print("ignite:");
+//      nss.println(pak[1]);
+//    }
+//    break;
+//    
+//  default:
+//    // Unsupported command
+//    nss.print("unsuportd cmd");
+//
+//    // @todo add more modes. Fun!
+//  }
+//}
 
 void setCharge(byte charge, bool setStatus) {
   nss.print("setting charge: ");
@@ -477,23 +481,31 @@ void smartParse() {
   //              4 = special command parameter
   //              5 = ignore this value
   
+  // reset some jazz
+  order1.setTimeline( 0 );
+  
+  // @todo this should allow multiple orders, ie: first order comes in and
+  //       it's made to be order0. second order comes in, it's order1.
+  
   // while there are chars to parse
   byte charPos = 0;
-  order0.state = 0;
+  order1.setState( 0 );
   while ( charPos < commandLen ) {
-    int inspectChar = rx.getData(charPos);
+    int inspectChar = rx.getData( charPos );
     
-    switch (order0.state) {
+    
+    
+    switch ( order1.gState() ) {
 
       
     /*
      * Parsing State 0
      * looking for first char of payload type
-     */        
+     */
     case 0:
       nss.println("|| state0");
-      order0.type = inspectChar;
-      order0.state = 1;  // go to next state
+      order1.setType( inspectChar );
+      order1.setState( 1 ); // go to next state
       break;
     
     
@@ -503,29 +515,34 @@ void smartParse() {
      */    
     case 1:
       nss.println("|| state1");
-      order0.type = order0.type * 100 + inspectChar;
+      // concatenate first and second char of payload type and store in order struct
+      order1.setType( order1.getType() * 100 + inspectChar );
       
       // determine payload type
-      switch (order0.type) {
+      switch ( order1.getType() ) {
       case 6865:
         // DA - De-Activate
         nss.println(">> DA");
+        // @todo activate DA somehow
         break;
           
       case 7083:
         // FS - Fire Script
         nss.println(">> FS");
+        // @todo activate FS somehow
         break;
+        
+      // @todo add more payload types. Fun!
         
       default:
         // unrecognized payload type.
-        nss.println("unsupp. type");
+        nss.println("unsupp panic");
         charPos = commandLen;  // End parsing immediately.
         
         
       } // end of switch
       
-      order0.state = 2;  // go to next state
+      order1.setState( 2 ); // go to next state
       break;
       
       
@@ -545,12 +562,13 @@ void smartParse() {
           
           // move to next state in which we will treat the next
           // character as a charge number
-          order0.state = 3;
+          order1.setState( 3 );
+
           
         } else {
           // character is less than 100 but it's not my number.
           // we need to ignore this and the next character.
-          order0.state = 5;
+          order1.setState( 5 );
         }
         
       } else {
@@ -567,29 +585,32 @@ void smartParse() {
           
         case 120:
           // delay time will be mlliseconds
-          order0.delayMult = 1;
-          order0.state = 4;
+          
+          order1.setDelayMult( 1 );
+          order1.setState( 4 );
           break;
           
         case 121:
           // delay time will be seconds
-          order0.delayMult = 1000;
-          order0.state = 4;
+          order1.setDelayMult( 1000 );
+          order1.setState( 4 );
+          nss.print("delaymult:");  // @todo delete this debug
+          nss.println(order1.getDelayMult());
           break;
           
         case 122:
           // delay time will be minutes
-          order0.delayMult = 60000;
-          order0.state = 4;
+          order1.setDelayMult( 60000 );
+          order1.setState( 4 );
           break;
           
         default:
           // unrecognized/unsupported special command type
           
-          nss.println("unsupp cmd type");
+          nss.println("unsupp 100 cmd");
           // We don't understand the command but a different type or version receiver might.
           // We will ignore this command and the next character, the command parameter.
-          order0.state = 5;
+          order1.setState( 5 );
           
           
         } // end of switch
@@ -606,21 +627,33 @@ void smartParse() {
       nss.println( "|| state3" );
       
       // add this charge number to our list of orders
-      actionList[ order0.mark ][ 0 ] = inspectChar;
+      actionList[ order1.getMark() ][ 0 ] = inspectChar;
       
       // indicate that we want to ignite
-      actionList[ order0.mark ][ 1 ] = 1;
+      actionList[ order1.getMark() ][ 1 ] = 1;
       
       // add the time at which our action needs to take place
-      actionTime[ order0.mark ] = order0.timeline;
-      nss.print( "(t):" );
-      nss.println( order0.timeline );
+      actionTime[ order1.getMark() ] = order1.getTimeline();
       
-      // increment mark by 1 so we don't overwrite this order next iteration
-      order0.mark ++;
+      // enable the action
+      actionEnable[ order1.getMark() ] = 1;
+      
+      // set a de-activate command x milliseconds in the future
+      // where x is the value of the globally configured ignition hold. (ignitionHold)
+      actionList[ order1.getNextMark() ][0] = inspectChar;                // array row
+      actionList[ order1.getNextMark() ][1] = 0;                          // LOW
+      actionTime[ order1.getNextMark() ] = order1.getTimeline() + ignitionHold;// time at which to go LOW
+      actionEnable[ order1.getNextMark() ] = 1;                           // enable
+      
+      // debug info
+      nss.print( "(t):" );
+      nss.println( order1.getTimeline() );
+      
+      // increment mark by 2 so we don't overwrite these orders next iteration
+      order1.incrementMark( 2 );
           
       // find out what our next character is
-      order0.state = 2;
+      order1.setState( 2 );
       break;
 
       
@@ -631,21 +664,38 @@ void smartParse() {
     case 4:
       nss.println("|| state4");
       
+      nss.print( "** pre-tl:" );
+      nss.print( order1.getTimeline() );
+      nss.print( " inspect:" );
+      nss.print( inspectChar );
+      nss.print( " mult:");
+      nss.print( order1.getDelayMult() );
+      nss.print( " mark:");
+      nss.println( order1.getMark() );
+      
+      
       { 
+        
+
         // convert the time to milliseconds depending on the time unit (millis, seconds, minutes)
         // that we gathered from state 2. Store in our actionTime list
-        unsigned long delayTime = order0.timeline + inspectChar * order0.delayMult;
-        actionTime[ 0 ] = delayTime;
-        order0.timeline = delayTime;  // running tab of order timeline
+        unsigned long delayTime = order1.getTimeline() + inspectChar * order1.getDelayMult();
+        actionTime[ order1.getMark() ] = delayTime;
+        order1.setTimeline( delayTime );  // running tab of order timeline
+        // ccc
+      
+      nss.print( "** post-tl:" );
+      nss.print( order1.getTimeline() );
+      nss.print( " actionTime:" );  
+      nss.print( actionTime[ order1.getMark() ] );
+      nss.print( " delaytime:" );
+      nss.print( delayTime );
+      nss.print( " mult:");
+      nss.println( order1.getDelayMult() );
+      
       }
-      
-      nss.print("** order0.timeline:");
-      nss.print(order0.timeline);
-      nss.print(" actionTime[0]:");  
-      nss.println(actionTime[0]);
-      
       // find out what our next character is
-      order0.state = 2;
+      order1.setState(2);
       break;
 
       
@@ -659,7 +709,7 @@ void smartParse() {
     case 5:
       nss.println("|| state5");
       
-      order0.state = 2;  // set us up to look at next character
+      order1.setState(2);  // set us up to look at next character
       break;
       
     } // end of state machine switch
@@ -667,9 +717,25 @@ void smartParse() {
     charPos ++; 
   }   // end of while loop
       
-  startTime = millis();   
+  nss.print( ">> start:" );
+  nss.println( millis() );
+  order1.setStartTime( millis() );   
      
 }
+
+///*
+// * incrementMark increments the order mark by the specified amount,
+// * preventing the order mark value from surpassing the maximum
+// * length of the order array.
+// */
+//void incrementMark(byte amount) {
+//  if ( order1.mark() == orderLen - 1 ) {
+//    order0.mark = 0;
+//    
+//  } else {
+//    order0.mark ++;
+//  }
+//}
 
 ///*
 // * Continually checks timers and deactivates charges that have reached alloted time
