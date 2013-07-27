@@ -94,7 +94,7 @@ const int splashTime = 50;                // time the splash text will display
 const int ignitionHold = 1000;            // pause time after igntion before DIO pin goes back LOW
 const byte receiverCount = 2;             // (zero index) number of receivers on our system. Can't be higher than 255.
 const byte chargeCount = 3;               // (zero index) readable number of charges per receiver.s
-
+const byte commandLen = 48;
 
 //byte upArrow[8] = {
 //  B00100,
@@ -250,7 +250,7 @@ byte rangeCheckCommand[] = {'N', 'D'}; // a harmless AT command to use to check 
  * 
  */
  
-PROGMEM prog_uchar firingScript[][48] = {
+const prog_uchar firingScript[][commandLen] PROGMEM = {
 //byte firingScript[][48] = {
   {1, 0, 121, 5, 0, 1, 128},                 // Arty Taco1
   {1, 1, 121, 5, 0, 2, 128},                 // Arty Taco2
@@ -289,14 +289,14 @@ char* textFiring = "firing!";
 // INIT
 //
 
-uint8_t command[24] = {0};                      // initial payload contents. This is changed by the program.
+uint8_t command[commandLen] = {0};                      // initial payload contents. This is changed by the program.
 
 SoftwareSerial nss(ssRx, ssTx);
 XBee xbee = XBee();
 XBeeAddress64 address64 = XBeeAddress64(receiverAddress[0][0], receiverAddress[0][1]);  // SH + SL of your receiver radio
 RemoteAtCommandRequest remoteAtRequest = RemoteAtCommandRequest(address64, chargePinCommand[0], chargePinLow, sizeof(chargePinLow));  // Create a remote AT request with the IR command
 RemoteAtCommandResponse remoteAtResponse = RemoteAtCommandResponse();                                             // Create a Remote AT response object
-ZBTxRequest zbTx = ZBTxRequest(address64, command, 24);  // address, payload, size
+ZBTxRequest zbTx = ZBTxRequest(address64, command, commandLen);  // address, payload, size
 ZBTxStatusResponse txStatus = ZBTxStatusResponse();
 SmartPayload smartPayload = SmartPayload();
 
@@ -610,14 +610,18 @@ void smartFire(byte scriptNumber) {
   
   nss.println("fire script");
 
-  for (int charPos = 0; charPos < sizeof(firingScript[scriptNumber]); charPos++) {
+  for (int charPos = 0; charPos < commandLen; charPos++) {
+  //for (int charPos = 0; charPos < sizeof(firingScript[scriptNumber]); charPos++) {
     // sizeof(firingScript[0]) will equal x: firingScript[][x]
     // Here we are going through each char of the selected firingScripts array.
     // i.e. we are figuring out what the firing script is telling us to do.
     // we will see a receiver number follwed by a charge number,
     // or a special designator (a number above 100) which tells us to pause.
           
-    if (firingScript[scriptNumber][charPos] == 128) {
+    byte script = pgm_read_byte(&(firingScript[scriptNumber][charPos]));        
+          
+    //if (firingScript[scriptNumber][charPos] == 128) {
+    if (script == 128) {
       // if the char we are lookig at is 128, stop checking this script.
       // 128 is an end-of-line (EOL) designator
       
@@ -634,12 +638,14 @@ void smartFire(byte scriptNumber) {
       nss.print("charPos:");
       nss.print(charPos);
       nss.print(" character:");
-      nss.println(firingScript[scriptNumber][charPos]);
+      //nss.println(firingScript[scriptNumber][charPos]);
+      nss.println(script);
       
-      // @todo this line causes a crash when either writing command[24] or accessing firingScript[scriptNumber][24]
-      //       worked around for now by preventing it from writing to [24]
-      if (charPos < 22) {
-        command[charPos+2] = firingScript[scriptNumber][charPos];
+      // @todo this line causes a crash when either writing command[48] or accessing firingScript[scriptNumber][48]
+      //       worked around for now by preventing it from writing to [48]
+      if (charPos < 46) {
+        //command[charPos+2] = firingScript[scriptNumber][charPos];
+        command[charPos+2] = script;
         
       } else {
         nss.println("Cmd too long. All FS must end in 128");
