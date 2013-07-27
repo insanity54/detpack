@@ -64,7 +64,7 @@
 #include <SoftwareSerial.h>
 #include <Adafruit_CharacterOLED.h>
 #include <SimpleTimer.h>
-
+#include <avr/pgmspace.h>
 
 
 
@@ -171,7 +171,9 @@ char* firingScriptTitle[] = {
   "Arty Olympic1",
   "Arty Olympic2",
   "Arty Olympic3",
-  "Olympic4"
+  "Olympic4",
+  "crazzy",
+  "barrage"
 };
 
 
@@ -247,15 +249,24 @@ byte rangeCheckCommand[] = {'N', 'D'}; // a harmless AT command to use to check 
  * 128 needs to be EOL delimeter
  * 
  */
-byte firingScript[][9] = {
-  {1,0,121,5,0,1,128},                 // Arty Taco1
-  {1,1,121,5,0,2,128},                 // Arty Taco2
-  {1,2,121,5,0,3,128},                 // Arty Taco3
+ 
+PROGMEM prog_uchar firingScript[][48] = {
+//byte firingScript[][48] = {
+  {1, 0, 121, 5, 0, 1, 128},                 // Arty Taco1
+  {1, 1, 121, 5, 0, 2, 128},                 // Arty Taco2
+  {1, 2, 121, 5, 0, 3, 128},                 // Arty Taco3
   
-  {1,3,121,5,2,0,128},                 // Arty Olympic1
-  {1,4,121,5,2,1,128},                 // Arty Olympic2
-  {1,5,121,5,2,2,128},                 // Arty Olympic3
-  {2,3,128}                            // Olympic4
+  {1, 3, 121, 5, 2, 0, 128},                 // Arty Olympic1
+  {1, 4, 121, 5, 2, 1, 128},                 // Arty Olympic2
+  {1, 5, 121, 5, 2, 2, 128},                 // Arty Olympic3
+  {2, 3, 128},                               // Olympic4
+
+  {1,0, 121,1, 1,1, 121,1, 1,2, 121,1, 1,3, 121,1, 1,4, 121,1, 1,5, 128}, // crazzy  
+  {1,0, 121,4, 0,0, 121,24, 1,1, 121,4, 2,0, 121,24, 1,2, 121,4, 0,1, 121,24, 
+// ^           v            ^           v            ^           v           
+
+   1,3, 121,4, 2,1, 121,24, 1,4, 121,4, 0,2, 121,24, 1,5, 121,4, 2,2, 128} // barrage
+// ^           v            ^           v            ^           v            
   
 //  {0,0,128},                         // Gas1
 //  {0,1,128},                         // Gas2
