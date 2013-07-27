@@ -84,7 +84,9 @@ SimpleTimer timer;
 struct order {
   int type;              // holds command payload type
   byte state;            // parsing state machine current state
+  byte mark;             // mark showing the current parse position
   byte delayMult;        // delay multiplier for converting delay times to milliseconds
+  
 };
   
 order order0 = {0, 0, 0};
@@ -340,8 +342,22 @@ void setCharge(byte charge, bool setStatus) {
 
 
 
-
-
+/*
+ * smartParse takes the received command payload and goes through it character
+ * by character and determines what it is that needs to be done with the
+ * orders. smartParse will discard orders in the command which belong to receivers
+ * other than itself.
+ *
+ * From the command payload, smartParse comes up with two lists (arrays) containing:
+ * 1) actions
+ * 2) times
+ *
+ * The action list dictates the charge number and either activate or de-activate.
+ * The time list dictates the relative time at which to take action.
+ *
+ * smartParse accepts no parameters. Instead, the information it needs is gathered
+ * from the global 'command' array.
+ */
 void smartParse() {
   // State machine
   // looking for: 0 = first char of payload type
@@ -353,6 +369,7 @@ void smartParse() {
   
   // while there are chars to parse
   byte charPos = 0;
+  order0.state = 0;
   while ( charPos < commandLen ) {
     int inspectChar = rx.getData(charPos);
     
@@ -373,15 +390,20 @@ void smartParse() {
       switch (order0.type) {
       case 6865:
         // DA - De-Activate
+        nss.println(">> DA");
         break;
           
       case 7083:
         // FS - Fire Script
+        nss.println(">> FS");
         break;
         
       default:
-        // unrecognized payload type
-        nss.println("unsupp. type");        
+        // unrecognized payload type.
+        nss.println("unsupp. type");
+        charPos = commandLen;  // End parsing immediately.
+        
+        
       } // end of switch
       
       order0.state = 2;  // go to next state
@@ -442,6 +464,9 @@ void smartParse() {
         default:
           // unrecognized/unsupported special command type
           nss.println("unsupp cmd type");
+          // We don't understand the command but a different type or version receiver might.
+          // We will ignore this command and the next character, the command parameter.
+          order0.state = 5;
           
           
         } // end of switch
@@ -454,6 +479,10 @@ void smartParse() {
       nss.println("|| state3");
       // looking for charge number
       
+      // add this charge number to our list of orders
+      orderList[order0.mark][0] = inspectChar;
+      order0.mark ++; // increment mark by 1 so we don't overwrite this order next iteration
+          
       // add charge number to order list
       orderList[0][0] = inspectChar; // @todo find out where x comes from
       
