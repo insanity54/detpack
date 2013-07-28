@@ -84,10 +84,10 @@ unsigned long Order::getDelayMult() {
  */
 void Order::incrementMark( byte amt = 1 ) {
   
-  if ( _mark + amt > _orderLen ) {
+  if ( _mark + amt >= _orderLen ) {
     // if incrementing by amt will put us over the orderLen limit
 
-    while ( _mark + amt > _orderLen ) {
+    while ( _mark + amt >= _orderLen ) {
       // loop until we get a value that is within our limit
       
       // find the amount over the limit it will make us

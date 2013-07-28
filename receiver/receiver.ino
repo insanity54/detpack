@@ -64,7 +64,7 @@ uint8_t led = 13;                          // status LED
 uint8_t chargePin[] = { 2, 3, 4, 5, 6, 7}; // charges
 
 // CONFIG
-byte me = 1; // zero-index of this receiver's number. @todo make this automatic. see below or search for, "automatic receiver id"
+byte me = 2; // zero-index of this receiver's number. @todo make this automatic. see below or search for, "automatic receiver id"
 //boolean debugMode = 0;
 unsigned int ignitionHold = 4000;           // pause time after igntion before DIO pin goes back LOW
 const byte commandLen = 48;  // length of command payload.
@@ -81,6 +81,7 @@ XBeeResponse response = XBeeResponse();
 ZBRxResponse rx = ZBRxResponse();
 ModemStatusResponse msr = ModemStatusResponse();
 //SimpleTimer timer;
+boolean parseQue = 0;
 Order order1 = Order(orderLen);
 
 
@@ -187,9 +188,12 @@ void setup() {
 void loop() {
   // check xbee for commands
   xbeeCheck();
-  //timer.run();
+  
+  // process any queued orders
   processOrder();
-  //testAction();
+  
+  // parse data from xbee
+  smartParse();
 }
 
 /*
@@ -231,8 +235,8 @@ void xbeeCheck(){
       }
       nss.println();
       
-      // parse that data!
-      smartParse();
+      // ccc parser went here originally
+      parseQue = 1;
 
       
     } else if (xbee.getResponse().getApiId() == MODEM_STATUS_RESPONSE) {
@@ -481,246 +485,258 @@ void smartParse() {
   //              4 = special command parameter
   //              5 = ignore this value
   
-  // reset some jazz
-  order1.setTimeline( 0 );
+  if ( parseQue ) {
+    // if there is data to be parsed
+    
+    // disable parseQue
+    parseQue = 0;
+    
+    // reset some jazz
+    order1.setTimeline( 0 );
+    
+    // @todo this should allow multiple orders, ie: first order comes in and
+    //       it's made to be order0. second order comes in, it's order1.
+    
+    // while there are chars to parse
+    byte charPos = 0;
+    order1.setState( 0 );
+    while ( charPos < commandLen ) {
+      int inspectChar = rx.getData( charPos );
+      
+      
+      
+      switch ( order1.gState() ) {
   
-  // @todo this should allow multiple orders, ie: first order comes in and
-  //       it's made to be order0. second order comes in, it's order1.
-  
-  // while there are chars to parse
-  byte charPos = 0;
-  order1.setState( 0 );
-  while ( charPos < commandLen ) {
-    int inspectChar = rx.getData( charPos );
-    
-    
-    
-    switch ( order1.gState() ) {
-
-      
-    /*
-     * Parsing State 0
-     * looking for first char of payload type
-     */
-    case 0:
-      nss.println("|| state0");
-      order1.setType( inspectChar );
-      order1.setState( 1 ); // go to next state
-      break;
-    
-    
-    /*
-     * Parsing State 1
-     * looking for the second char of payload type
-     */    
-    case 1:
-      nss.println("|| state1");
-      // concatenate first and second char of payload type and store in order struct
-      order1.setType( order1.getType() * 100 + inspectChar );
-      
-      // determine payload type
-      switch ( order1.getType() ) {
-      case 6865:
-        // DA - De-Activate
-        nss.println(">> DA");
-        // @todo activate DA somehow
+        
+      /*
+       * Parsing State 0
+       * looking for first char of payload type
+       */
+      case 0:
+        nss.println("|| state0");
+        order1.setType( inspectChar );
+        order1.setState( 1 ); // go to next state
         break;
-          
-      case 7083:
-        // FS - Fire Script
-        nss.println(">> FS");
-        // @todo activate FS somehow
-        break;
-        
-      // @todo add more payload types. Fun!
-        
-      default:
-        // unrecognized payload type.
-        nss.println("unsupp panic");
-        charPos = commandLen;  // End parsing immediately.
-        
-        
-      } // end of switch
-      
-      order1.setState( 2 ); // go to next state
-      break;
       
       
-    /*
-     * Parsing State 2
-     * looking for receiver number or special command
-     */        
-    case 2:
-      nss.println("|| state2");
-      
-      if ( inspectChar < 100 ) {
-        // character is less than 100 so it's got to be a receiver number,
-        // not a special command (special commands are numbers above 100)
+      /*
+       * Parsing State 1
+       * looking for the second char of payload type
+       */    
+      case 1:
+        nss.println("|| state1");
+        // concatenate first and second char of payload type and store in order struct
+        order1.setType( order1.getType() * 100 + inspectChar );
         
-        if ( inspectChar == me ) {
-          // if character is my receiver number
-          
-          // move to next state in which we will treat the next
-          // character as a charge number
-          order1.setState( 3 );
-
-          
-        } else {
-          // character is less than 100 but it's not my number.
-          // we need to ignore this and the next character.
-          order1.setState( 5 );
-        }
-        
-      } else {
-        // character is greater than 100 so it's got to be a
-        // special command.
-        
-        switch ( inspectChar ) {
-        // find what special command has been issued
-
-        case 128:
-          // end of line. stop parsing.
-          charPos = commandLen;
+        // determine payload type
+        switch ( order1.getType() ) {
+        case 6865:
+          // DA - De-Activate
+          nss.println(">> DA");
+          // @todo activate DA somehow
+          break;
+            
+        case 7083:
+          // FS - Fire Script
+          nss.println(">> FS");
+          // @todo activate FS somehow
           break;
           
-        case 120:
-          // delay time will be mlliseconds
-          
-          order1.setDelayMult( 1 );
-          order1.setState( 4 );
-          break;
-          
-        case 121:
-          // delay time will be seconds
-          order1.setDelayMult( 1000 );
-          order1.setState( 4 );
-          nss.print("delaymult:");  // @todo delete this debug
-          nss.println(order1.getDelayMult());
-          break;
-          
-        case 122:
-          // delay time will be minutes
-          order1.setDelayMult( 60000 );
-          order1.setState( 4 );
-          break;
+        // @todo add more payload types. Fun!
           
         default:
-          // unrecognized/unsupported special command type
-          
-          nss.println("unsupp 100 cmd");
-          // We don't understand the command but a different type or version receiver might.
-          // We will ignore this command and the next character, the command parameter.
-          order1.setState( 5 );
+          // unrecognized payload type.
+          nss.println("unsupp panic");
+          charPos = commandLen;  // End parsing immediately.
           
           
         } // end of switch
-      }   // end of else
-      
-      break;
-  
-      
-    /*
-     * Parsing State 3
-     * looking for charge number
-     */      
-    case 3:
-      nss.println( "|| state3" );
-      
-      // add this charge number to our list of orders
-      actionList[ order1.getMark() ][ 0 ] = inspectChar;
-      
-      // indicate that we want to ignite
-      actionList[ order1.getMark() ][ 1 ] = 1;
-      
-      // add the time at which our action needs to take place
-      actionTime[ order1.getMark() ] = order1.getTimeline();
-      
-      // enable the action
-      actionEnable[ order1.getMark() ] = 1;
-      
-      // set a de-activate command x milliseconds in the future
-      // where x is the value of the globally configured ignition hold. (ignitionHold)
-      actionList[ order1.getNextMark() ][0] = inspectChar;                // array row
-      actionList[ order1.getNextMark() ][1] = 0;                          // LOW
-      actionTime[ order1.getNextMark() ] = order1.getTimeline() + ignitionHold;// time at which to go LOW
-      actionEnable[ order1.getNextMark() ] = 1;                           // enable
-      
-      // debug info
-      nss.print( "(t):" );
-      nss.println( order1.getTimeline() );
-      
-      // increment mark by 2 so we don't overwrite these orders next iteration
-      order1.incrementMark( 2 );
-          
-      // find out what our next character is
-      order1.setState( 2 );
-      break;
-
-      
-    /*
-     * Parsing State 4
-     * looking for special command parameter
-     */        
-    case 4:
-      nss.println("|| state4");
-      
-      nss.print( "** pre-tl:" );
-      nss.print( order1.getTimeline() );
-      nss.print( " inspect:" );
-      nss.print( inspectChar );
-      nss.print( " mult:");
-      nss.print( order1.getDelayMult() );
-      nss.print( " mark:");
-      nss.println( order1.getMark() );
-      
-      
-      { 
         
-
-        // convert the time to milliseconds depending on the time unit (millis, seconds, minutes)
-        // that we gathered from state 2. Store in our actionTime list
-        unsigned long delayTime = order1.getTimeline() + inspectChar * order1.getDelayMult();
-        actionTime[ order1.getMark() ] = delayTime;
-        order1.setTimeline( delayTime );  // running tab of order timeline
-        // ccc
-      
-      nss.print( "** post-tl:" );
-      nss.print( order1.getTimeline() );
-      nss.print( " actionTime:" );  
-      nss.print( actionTime[ order1.getMark() ] );
-      nss.print( " delaytime:" );
-      nss.print( delayTime );
-      nss.print( " mult:");
-      nss.println( order1.getDelayMult() );
-      
-      }
-      // find out what our next character is
-      order1.setState(2);
-      break;
-
-      
-    /*
-     * Parsing State 5
-     * looking for nothing; we are ignoring this value.
-     * we are ignoring because the value is not meant for us.
-     * Most likely we picked up this value from a transmitter broadcast
-     * and the value is a different receiver number.
-     */        
-    case 5:
-      nss.println("|| state5");
-      
-      order1.setState(2);  // set us up to look at next character
-      break;
-      
-    } // end of state machine switch
+        order1.setState( 2 ); // go to next state
+        break;
+        
+        
+      /*
+       * Parsing State 2
+       * looking for receiver number or special command
+       */        
+      case 2:
+        nss.println("|| state2");
+        
+        if ( inspectChar < 100 ) {
+          // character is less than 100 so it's got to be a receiver number,
+          // not a special command (special commands are numbers above 100)
+          
+          if ( inspectChar == me ) {
+            // if character is my receiver number
+            
+            // move to next state in which we will treat the next
+            // character as a charge number
+            order1.setState( 3 );
+  
+            
+          } else {
+            // character is less than 100 but it's not my number.
+            // we need to ignore this and the next character.
+            order1.setState( 5 );
+          }
+          
+        } else {
+          // character is greater than 100 so it's got to be a
+          // special command.
+          
+          switch ( inspectChar ) {
+          // find what special command has been issued
+  
+          case 128:
+            // end of line. stop parsing.
+            charPos = commandLen;
+            break;
+            
+          case 120:
+            // delay time will be mlliseconds
+            
+            order1.setDelayMult( 1 );
+            order1.setState( 4 );
+            break;
+            
+          case 121:
+            // delay time will be seconds
+            order1.setDelayMult( 1000 );
+            order1.setState( 4 );
+            nss.print("delaymult:");  // @todo delete this debug
+            nss.println(order1.getDelayMult());
+            break;
+            
+          case 122:
+            // delay time will be minutes
+            order1.setDelayMult( 60000 );
+            order1.setState( 4 );
+            break;
+            
+          default:
+            // unrecognized/unsupported special command type
+            
+            nss.println("unsupp 100 cmd");
+            // We don't understand the command but a different type or version receiver might.
+            // We will ignore this command and the next character, the command parameter.
+            order1.setState( 5 );
+            
+            
+          } // end of switch
+        }   // end of else
+        
+        break;
     
-    charPos ++; 
-  }   // end of while loop
+        
+      /*
+       * Parsing State 3
+       * looking for charge number
+       */      
+      case 3:
+        nss.println( "|| state3" );
+        
+        // add this charge number to our list of orders
+        actionList[ order1.getMark() ][ 0 ] = inspectChar;
+        
+        // indicate that we want to ignite
+        actionList[ order1.getMark() ][ 1 ] = 1;
+        
+        // add the time at which our action needs to take place
+        actionTime[ order1.getMark() ] = order1.getTimeline();
+        
+        // enable the action
+        actionEnable[ order1.getMark() ] = 1;
+        
+        // set a de-activate command x milliseconds in the future
+        // where x is the value of the globally configured ignition hold. (ignitionHold)
+        actionList[ order1.getNextMark() ][0] = inspectChar;                // array row
+        actionList[ order1.getNextMark() ][1] = 0;                          // LOW
+        actionTime[ order1.getNextMark() ] = order1.getTimeline() + ignitionHold;// time at which to go LOW
+        actionEnable[ order1.getNextMark() ] = 1;                           // enable
+        
+        // debug info
+        nss.print( "(t):" );
+        nss.println( order1.getTimeline() );
+        
+        // increment mark by 2 so we don't overwrite these orders next iteration
+        nss.print( "&& mark was:" );
+        nss.print( order1.getMark() );
+
+        order1.incrementMark( 2 );
+            
+        nss.print( " is now:" );
+        nss.println( order1.getMark() );  
+            
+        // find out what our next character is
+        order1.setState( 2 );
+        break;
+  
+        
+      /*
+       * Parsing State 4
+       * looking for special command parameter
+       */        
+      case 4:
+        nss.println("|| state4");
+        
+        nss.print( "** pre-tl:" );
+        nss.print( order1.getTimeline() );
+        nss.print( " inspect:" );
+        nss.print( inspectChar );
+        nss.print( " mult:");
+        nss.print( order1.getDelayMult() );
+        nss.print( " mark:");
+        nss.println( order1.getMark() );
+        
+        
+        { 
+          
+  
+          // convert the time to milliseconds depending on the time unit (millis, seconds, minutes)
+          // that we gathered from state 2. Store in our actionTime list
+          unsigned long delayTime = order1.getTimeline() + inspectChar * order1.getDelayMult();
+          actionTime[ order1.getMark() ] = delayTime;
+          order1.setTimeline( delayTime );  // running tab of order timeline
+          // ccc
+        
+        nss.print( "** post-tl:" );
+        nss.print( order1.getTimeline() );
+        nss.print( " actionTime:" );  
+        nss.print( actionTime[ order1.getMark() ] );
+        nss.print( " delaytime:" );
+        nss.print( delayTime );
+        nss.print( " mult:");
+        nss.println( order1.getDelayMult() );
+        
+        }
+        // find out what our next character is
+        order1.setState(2);
+        break;
+  
+        
+      /*
+       * Parsing State 5
+       * looking for nothing; we are ignoring this value.
+       * we are ignoring because the value is not meant for us.
+       * Most likely we picked up this value from a transmitter broadcast
+       * and the value is a different receiver number.
+       */        
+      case 5:
+        nss.println("|| state5");
+        
+        order1.setState(2);  // set us up to look at next character
+        break;
+        
+      } // end of state machine switch
       
-  nss.print( ">> start:" );
-  nss.println( millis() );
-  order1.setStartTime( millis() );   
-     
+      charPos ++; 
+    }   // end of while loop
+        
+    nss.print( ">> start:" );
+    nss.println( millis() );
+    order1.setStartTime( millis() );   
+  }
 }
 
 ///*

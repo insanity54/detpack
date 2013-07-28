@@ -171,9 +171,9 @@ char* firingScriptTitle[] = {
   "Arty Olympic1",
   "Arty Olympic2",
   "Arty Olympic3",
+  "Taco4",
   "Olympic4",
-  "crazzy",
-  "barrage"
+  "crazzy"
 };
 
 
@@ -252,20 +252,21 @@ byte rangeCheckCommand[] = {'N', 'D'}; // a harmless AT command to use to check 
  
 const prog_uchar firingScript[][commandLen] PROGMEM = {
 //byte firingScript[][48] = {
-  {1, 0, 121, 5, 0, 1, 128},                 // Arty Taco1
-  {1, 1, 121, 5, 0, 2, 128},                 // Arty Taco2
-  {1, 2, 121, 5, 0, 3, 128},                 // Arty Taco3
+  {1, 0, 121, 5, 0, 0, 128},                 // Arty Taco1
+  {1, 1, 121, 5, 0, 1, 128},                 // Arty Taco2
+  {1, 2, 121, 5, 0, 2, 128},                 // Arty Taco3
   
   {1, 3, 121, 5, 2, 0, 128},                 // Arty Olympic1
   {1, 4, 121, 5, 2, 1, 128},                 // Arty Olympic2
   {1, 5, 121, 5, 2, 2, 128},                 // Arty Olympic3
+  {0, 3, 128},                               // Taco4
   {2, 3, 128},                               // Olympic4
 
   {1,0, 121,1, 1,1, 121,1, 1,2, 121,1, 1,3, 121,1, 1,4, 121,1, 1,5, 128}, // crazzy  
-  {1,0, 121,4, 0,0, 121,24, 1,1, 121,4, 2,0, 121,24, 1,2, 121,4, 0,1, 121,24, 
+//  {1,0, 121,4, 0,0, 121,24, 1,1, 121,4, 2,0, 121,24, 1,2, 121,4, 0,1, 121,24, 
 // ^           v            ^           v            ^           v           
 
-   1,3, 121,4, 2,1, 121,24, 1,4, 121,4, 0,2, 121,24, 1,5, 121,4, 2,2, 128} // barrage
+//   1,3, 121,4, 2,1, 121,24, 1,4, 121,4, 0,2, 121,24, 1,5, 121,4, 2,2, 128} // barrage
 // ^           v            ^           v            ^           v            
   
 //  {0,0,128},                         // Gas1
