@@ -105,15 +105,15 @@ byte commandLen = 50;
 //  B00100,
 //  B00100
 //};
-//byte downArrow[8] = {
-//  B00100,
-//  B00100,
-//  B00100,
-//  B00100,
-//  B11111,
-//  B01110,
-//  B00100
-//};
+byte downArrow[8] = {
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B11111,
+  B01110,
+  B00100
+};
 byte thumbsUp[8] = {
   B00100,
   B01100,
@@ -302,7 +302,8 @@ SmartPayload smartPayload = SmartPayload();
 SimpleTimer timer;                         // timer object
 // create timer id that will end display of the splash screen
 // create timer that will clear the padlock icon after 1s
-int timerNavLock = timer.setTimeout(3000, menuClearLock);
+//int timerNavLock = timer.setTimeout(3000, menuClearLock);
+//int timerNavThumb = timer.setTimeout(3000, menuClearThumb);
 
 
 Keypad kpd = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
@@ -339,6 +340,7 @@ void setup() {
   lcd.createChar(0, thumbsUp);
   lcd.createChar(1, thumbsDown);
   lcd.createChar(2, lock);
+  lcd.createChar(3, downArrow);
   lcd.begin(lcdWidth, lcdHeight);                    // start lcd
   lcd.setCursor(0, lcdHeight - 1);                   // set lcd cursor position to second line
   lcd.setCursor(0,0);
@@ -721,6 +723,30 @@ void menuClearLock() {
 }
 
 /*
+ * Clears the thumb in the specified position
+ */
+void menuClearThumb() {
+  lcd.setCursor(13, 0);
+  lcd.write(' ');
+}
+
+/*
+ * Clears the 'Cancel' C from the menu
+ */
+void menuClearC() {
+  lcd.setCursor(12, 0);
+  lcd.write(' '); 
+}
+
+/*
+ * Clears the 'De-activate' arrow from the menu
+ */
+void menuClearArrow() {
+  lcd.setCursor(11, 0);
+  lcd.write(' '); 
+}
+
+/*
  * Function to navigate the menu.
  * @param char navDirection accepts 'u', 'd', 'l', 'r' for up, down, left, right, respectively
  */
@@ -887,13 +913,14 @@ void keypadCheck(){
           
         case 'C':
           // if C is pressed, do stuff
-          smartClear();
           smartCancel();
-          displayThumb(0,1);
+          menuDisplayC();
           break;
         
         case 'D':
           // if D is pressed, do stuff
+          smartClear();
+          menuDisplayArrow();
           break;
       
         case '*':
@@ -925,13 +952,35 @@ void debugXbee(uint32_t info) {
  * @param byte pos  the position of the thumb on display (0-2)
  * @param byte dir  the direction of the thumb. 1 for up, 0 for down.
  */
-void displayThumb(byte pos, boolean dir) {
+void menuDisplayThumb(byte pos, boolean dir) {
   lcd.setCursor((13 + pos), 0);
   if (dir) {
-    lcd.write(0);
+    lcd.write(0); // thumbs up
   } else {
-    lcd.write(1);
+    lcd.write(1); // thumbs down
   }
+  
+  int timerNavThumb = timer.setTimeout(1000, menuClearThumb);
+}
+
+/*
+ * Displays a C for cancel
+ */
+void menuDisplayC() {
+  lcd.setCursor(12, 0);
+  lcd.print("C");
+  
+  int timerNavC = timer.setTimeout(1000, menuClearC);
+}
+
+/*
+ * Displays an arrow on the screen
+ */
+void menuDisplayArrow() {
+  lcd.setCursor(11, 0);
+  lcd.write(3);
+  
+  int timerNavArrow = timer.setTimeout(1000, menuClearArrow);
 }
 
 void notify1(char *message) {
