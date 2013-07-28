@@ -114,24 +114,24 @@ byte downArrow[8] = {
   B01110,
   B00100
 };
-byte thumbsUp[8] = {
-  B00100,
-  B01100,
-  B01111,
-  B11111,
-  B11111,
-  B11111,
-  B01110 
-};
-byte thumbsDown[8] = {
-  B01110,
-  B11111,
-  B11111,  
-  B11111,
-  B01111,
-  B01100,
-  B00100  
-};
+//byte thumbsUp[8] = {
+//  B00100,
+//  B01100,
+//  B01111,
+//  B11111,
+//  B11111,
+//  B11111,
+//  B01110 
+//};
+//byte thumbsDown[8] = {
+//  B01110,
+//  B11111,
+//  B11111,  
+//  B11111,
+//  B01111,
+//  B01100,
+//  B00100  
+//};
 byte lock[8] = {
   B01110,
   B10001,
@@ -230,14 +230,14 @@ uint8_t receiverType[receiverCount + 1] = {
 //};
 
 
-uint8_t chargePinCommand[][3] = {
-  {'D', '0'}, {'D', '1'}, {'D', '2'}
-}; 
-
-uint8_t chargePinHigh[] = { 0x5 };
-uint8_t chargePinLow[] = { 0x4 };
- 
-byte rangeCheckCommand[] = {'N', 'D'}; // a harmless AT command to use to check if a receiver is in range.
+//uint8_t chargePinCommand[][3] = {
+//  {'D', '0'}, {'D', '1'}, {'D', '2'}
+//}; 
+//
+//uint8_t chargePinHigh[] = { 0x5 };
+//uint8_t chargePinLow[] = { 0x4 };
+// 
+//byte rangeCheckCommand[] = {'N', 'D'}; // a harmless AT command to use to check if a receiver is in range.
 
 /*
  * Firing Script Definitions
@@ -250,7 +250,7 @@ byte rangeCheckCommand[] = {'N', 'D'}; // a harmless AT command to use to check 
  * 
  */
  
-const prog_uchar firingScript[][48] PROGMEM = {
+const prog_uchar firingScript[][50] PROGMEM = {
 //byte firingScript[][48] = {
   {1, 0, 121, 5, 0, 0, 128},                 // Arty Taco1
   {1, 1, 121, 5, 0, 1, 128},                 // Arty Taco2
@@ -292,8 +292,8 @@ uint8_t command[48] = {0};                      // initial payload contents. Thi
 SoftwareSerial nss(ssRx, ssTx);
 XBee xbee = XBee();
 XBeeAddress64 address64 = XBeeAddress64(receiverAddress[0][0], receiverAddress[0][1]);  // SH + SL of your receiver radio
-RemoteAtCommandRequest remoteAtRequest = RemoteAtCommandRequest(address64, chargePinCommand[0], chargePinLow, sizeof(chargePinLow));  // Create a remote AT request with the IR command
-RemoteAtCommandResponse remoteAtResponse = RemoteAtCommandResponse();                                             // Create a Remote AT response object
+//RemoteAtCommandRequest remoteAtRequest = RemoteAtCommandRequest(address64, chargePinCommand[0], chargePinLow, sizeof(chargePinLow));  // Create a remote AT request with the IR command
+//RemoteAtCommandResponse remoteAtResponse = RemoteAtCommandResponse();                                             // Create a Remote AT response object
 ZBTxRequest zbTx = ZBTxRequest(address64, command, commandLen);  // address, payload, size
 ZBTxStatusResponse txStatus = ZBTxStatusResponse();
 SmartPayload smartPayload = SmartPayload();
@@ -337,8 +337,8 @@ void setup() {
   
   Serial.begin(9600);                                // begin Serial comms for xbee
   xbee.begin(Serial);                                // begin xbee library
-  lcd.createChar(0, thumbsUp);
-  lcd.createChar(1, thumbsDown);
+//  lcd.createChar(0, thumbsUp);
+//  lcd.createChar(1, thumbsDown);
   lcd.createChar(2, lock);
   lcd.createChar(3, downArrow);
   lcd.begin(lcdWidth, lcdHeight);                    // start lcd
@@ -369,7 +369,7 @@ void uiLockCheck() {
       
       if (digitalRead(ssRx)) {
         // switch is closed, lock.
-        nss.println("switch closed");
+        nss.println("sw clsd");
         lcd.clear();
         menuDisplayLock();
         digitalWrite(led, HIGH);
@@ -377,7 +377,7 @@ void uiLockCheck() {
         
       } else {
         // switch is open, unlock.
-        nss.println("switch open");
+        nss.println("sw opn");
         menuDisplay();
         digitalWrite(led, LOW);
         uiLock = 0;
@@ -416,23 +416,24 @@ void xbeeCheckRx() {
    
     switch (xbee.getResponse().getApiId()) {
       
-      case REMOTE_AT_COMMAND_RESPONSE:
-        // got an AT command response packet
-        nss.println("rx atrx pak");
-      
-        // fill our remote AT rx object
-        xbee.getResponse().getRemoteAtCommandResponse(remoteAtResponse);
-      
-        // find out if DIO state was triggered successfully
-        if (remoteAtResponse.isOk()) {
-          // it was
-          nss.println("DIO gud");
-        
-        } else {
-          // it wasn't
-          nss.println("DIO bad");
-        }
-        break;
+      // @todo remove(?) this is dumb receiver code.
+//      case REMOTE_AT_COMMAND_RESPONSE:
+//        // got an AT command response packet
+//        nss.println("rx atrx pak");
+//      
+//        // fill our remote AT rx object
+//        xbee.getResponse().getRemoteAtCommandResponse(remoteAtResponse);
+//      
+//        // find out if DIO state was triggered successfully
+//        if (remoteAtResponse.isOk()) {
+//          // it was
+//          nss.println("DIO gud");
+//        
+//        } else {
+//          // it wasn't
+//          nss.println("DIO bad");
+//        }
+//        break;
         
       case ZB_TX_STATUS_RESPONSE:
         // tx is completed, receiver replies with this.
@@ -474,88 +475,88 @@ void xbeeCheckRx() {
     
   } else if (xbee.getResponse().isError()) {
     // there was an error in the response packet
-    nss.print("Error code: ");
+    nss.print("Err:");
     nss.println(xbee.getResponse().getErrorCode());
   
   }
 }
 
-/*
- * Set the status of a charge either on or off. For dumb receivers only.
- * @param byte receiver is the receiver number to set
- * @param byte charge is the charge number to set
- * @param bool status sets the status. 1 is DIO HIGH (ignite), 0 is DIO LOW (off)
- */
-void setCharge(byte receiver, byte charge, bool setStatus) {
-  
-  // set appropriate receiver destination address
-  nss.println("set rx dest");
-  address64.setMsb(receiverAddress[receiver][0]);
-  address64.setLsb(receiverAddress[receiver][1]);
-  
-  
-  // determine if target receiver type (smart or dumb, etc.)
-  //nss.print("testing against receiver number: '");
-  //nss.print(receiver);
-  //nss.print("' which is of type: ");
-  //nss.println(receiverType[receiver]); @todo deleteme
-  
-  switch (receiverType[receiver]) {
-    case 0:
-    // target receiver is dumb receiver. Send AT commands
-    // update the object with the correct address
-    remoteAtRequest.setRemoteAddress64(address64);
-    
-    nss.println("send dumb rxr");
-  
-    // set appropriate DIO pin
-    nss.println("set dio pin");  
-    remoteAtRequest.setCommand(chargePinCommand[charge]);
-  
-    if(setStatus == 1) {
-      // if we are igniting
-      nss.println("IG");
-      
-      // set the DIO pin HIGH (AT command HEX value 0x5)
-      nss.println("set DIO 1");
-      remoteAtRequest.setCommandValue(chargePinHigh);
-      remoteAtRequest.setCommandValueLength(sizeof(chargePinHigh));
-  
-    
-      // send command
-      nss.println("send remAT req");
-      nss.println("  send pay");
-      xbee.send(remoteAtRequest);
-
-    
-      
-    } else {
-      // we are deactivating
-      nss.println("deact");
-   
-      // set the DIO pin HIGH (AT command HEX value 0x5)
-      //nss.println("setting DIO pin low");
-      remoteAtRequest.setCommandValue(chargePinLow);
-      remoteAtRequest.setCommandValueLength(sizeof(chargePinLow));
-  
-      // send command
-      //nss.println("Sending remote AT request.");
-      //nss.println("   send pay");
-      xbee.send(remoteAtRequest);  
-    }
-    break;
-
-  case 1:
-    // target receiver is a smart receiver. Send serial messages.
-    nss.println("dont send dumb to smart!");
-    break;
-
-
-  default:
-    nss.println("target rxr type not supp");
-    
-  }
-}
+///*
+// * Set the status of a charge either on or off. For dumb receivers only.
+// * @param byte receiver is the receiver number to set
+// * @param byte charge is the charge number to set
+// * @param bool status sets the status. 1 is DIO HIGH (ignite), 0 is DIO LOW (off)
+// */
+//void setCharge(byte receiver, byte charge, bool setStatus) {
+//  
+//  // set appropriate receiver destination address
+//  nss.println("set rx dest");
+//  address64.setMsb(receiverAddress[receiver][0]);
+//  address64.setLsb(receiverAddress[receiver][1]);
+//  
+//  
+//  // determine if target receiver type (smart or dumb, etc.)
+//  //nss.print("testing against receiver number: '");
+//  //nss.print(receiver);
+//  //nss.print("' which is of type: ");
+//  //nss.println(receiverType[receiver]); @todo deleteme
+//  
+//  switch (receiverType[receiver]) {
+//    case 0:
+//    // target receiver is dumb receiver. Send AT commands
+//    // update the object with the correct address
+//    remoteAtRequest.setRemoteAddress64(address64);
+//    
+//    nss.println("send dumb rxr");
+//  
+//    // set appropriate DIO pin
+//    nss.println("set dio pin");  
+//    remoteAtRequest.setCommand(chargePinCommand[charge]);
+//  
+//    if(setStatus == 1) {
+//      // if we are igniting
+//      nss.println("IG");
+//      
+//      // set the DIO pin HIGH (AT command HEX value 0x5)
+//      nss.println("set DIO 1");
+//      remoteAtRequest.setCommandValue(chargePinHigh);
+//      remoteAtRequest.setCommandValueLength(sizeof(chargePinHigh));
+//  
+//    
+//      // send command
+////      nss.println("send remAT req");
+////      nss.println("  send pay");
+//      xbee.send(remoteAtRequest);
+//
+//    
+//      
+//    } else {
+//      // we are deactivating
+//      nss.println("deact");
+//   
+//      // set the DIO pin HIGH (AT command HEX value 0x5)
+//      //nss.println("setting DIO pin low");
+//      remoteAtRequest.setCommandValue(chargePinLow);
+//      remoteAtRequest.setCommandValueLength(sizeof(chargePinLow));
+//  
+//      // send command
+//      //nss.println("Sending remote AT request.");
+//      //nss.println("   send pay");
+//      xbee.send(remoteAtRequest);  
+//    }
+//    break;
+//
+//  case 1:
+//    // target receiver is a smart receiver. Send serial messages.
+//    nss.println("dum2smrt"); // don't send dumb to smart!
+//    break;
+//
+//
+//  default:
+//    nss.println("not supp");
+//    
+//  }
+//}
       
 /*
  * smartCancel sends a message to smart receivers telling them to cancel all orders.
@@ -574,7 +575,7 @@ void smartCancel() {
   zbTx.setAddress64(address64);
   
   // send message
-  nss.println(" )) cancel");
+  nss.println(" )) CN");
   xbee.send(zbTx);  
 }
       
@@ -599,7 +600,7 @@ void smartClear() {
   zbTx.setAddress64(address64);
 
   // send the payload
-  nss.println(" )) clr pay");
+  nss.println(" )) DA");
   xbee.send(zbTx);
 }
       
@@ -620,7 +621,6 @@ void smartSize() {
  * @param byte scriptNumber the script number from the 'firingScript' array
  */
 void smartFire(byte scriptNumber) {
-  //ccc
   
   // The first two characters of our command payload are 'FS' which is an identifier of
   // the type of command we are sending. 'FS' tells the receiver that this command
@@ -639,6 +639,7 @@ void smartFire(byte scriptNumber) {
     // we will see a receiver number follwed by a charge number,
     // or a special designator (a number above 100) which tells us to pause.
           
+    // @todo is this even right?
     byte script = pgm_read_byte(&(firingScript[scriptNumber][charPos]));        
           
     //if (firingScript[scriptNumber][charPos] == 128) {
@@ -656,12 +657,13 @@ void smartFire(byte scriptNumber) {
       // add the number to the command payload
       // offset by +2 because the first two of command payload are 'F' and 'S'
       
-      nss.print("charPos:");
-      nss.print(charPos);
-      nss.print(" character:");
+//      nss.print("charPos:");
+//      nss.print(charPos);
+//      nss.print(" character:");
       //nss.println(firingScript[scriptNumber][charPos]);
       nss.println(script);
       
+      // @todo abstract this!
       // @todo this line causes a crash when either writing command[48] or accessing firingScript[scriptNumber][48]
       //       worked around for now by preventing it from writing to [48]
       if (charPos < 46) {
@@ -669,13 +671,13 @@ void smartFire(byte scriptNumber) {
         command[charPos+2] = script;
         
       } else {
-        nss.println("Cmd too long. All FS must end in 128");
+        nss.println("Cmd 2long"); // all FS must end in 128
       }
     }
   }
   
   // @todo clean this up
-  nss.println("smart set dest");
+  //nss.println("smart set dest");
   //for (int r = 0; r < receiverCount; r++) {
   // send orders to each receiver
   // @todo either make this a broadcast, or determine
@@ -690,7 +692,7 @@ void smartFire(byte scriptNumber) {
 
 
   // send the payload
-  nss.println("   send pay"); 
+  //nss.println("   send pay"); 
   xbee.send(zbTx);
 //   state1: look for two numbers each < 100
 //   found number > 128?
@@ -985,7 +987,9 @@ void menuDisplayArrow() {
 
 void notify1(char *message) {
   lcd.setCursor(0, 0);
-  lcd.print("                "); 
+  for (byte b = 0; b < 16; b++) {
+    lcd.print(" "); 
+  }
   lcd.setCursor(0, 0);
   lcd.print(message); 
   nss.println(message);
@@ -993,7 +997,9 @@ void notify1(char *message) {
 
 void notify2(char *message) {
   lcd.setCursor(0, 1);
-  lcd.print("                "); 
+  for (byte b = 0; b < 16; b++) {
+    lcd.print(" "); 
+  }
   lcd.setCursor(0, 1);
   lcd.print(message); 
   nss.println(message);
