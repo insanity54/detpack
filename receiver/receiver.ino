@@ -67,7 +67,7 @@ uint8_t chargePin[] = { 2, 3, 4, 5, 6, 7}; // charges
 byte me = 0; // zero-index of this receiver's number. @todo make this automatic. see below or search for, "automatic receiver id"
 //boolean debugMode = 0;
 unsigned int ignitionHold = 4000;           // pause time after igntion before DIO pin goes back LOW
-const byte commandLen = 48;  // length of command payload.
+const byte commandLen = 50;  // length of command payload.
 const byte orderLen = 24;    // length of locally stored order lists
 
 // INIT
@@ -541,7 +541,7 @@ void smartParse() {
         case 6865:
           // DA - De-Activate
           nss.println(">> DA");
-          deactivateCharges();
+          deactivateCharges();  // @todo I don't like actions taking place during the parsing phase. Is there a better way?
           charPos = commandLen; // stop parsing
           break;
             
@@ -748,19 +748,6 @@ void smartParse() {
   }
 }
 
-///*
-// * incrementMark increments the order mark by the specified amount,
-// * preventing the order mark value from surpassing the maximum
-// * length of the order array.
-// */
-//void incrementMark(byte amount) {
-//  if ( order1.mark() == orderLen - 1 ) {
-//    order0.mark = 0;
-//    
-//  } else {
-//    order0.mark ++;
-//  }
-//}
 
 /*
  * Deactivates all charges
