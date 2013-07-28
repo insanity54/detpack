@@ -94,7 +94,7 @@ const int splashTime = 50;                // time the splash text will display
 const int ignitionHold = 1000;            // pause time after igntion before DIO pin goes back LOW
 const byte receiverCount = 2;             // (zero index) number of receivers on our system. Can't be higher than 255.
 const byte chargeCount = 3;               // (zero index) readable number of charges per receiver.s
-const byte commandLen = 50;
+byte commandLen = 50;
 
 //byte upArrow[8] = {
 //  B00100,
@@ -250,7 +250,7 @@ byte rangeCheckCommand[] = {'N', 'D'}; // a harmless AT command to use to check 
  * 
  */
  
-const prog_uchar firingScript[][commandLen] PROGMEM = {
+const prog_uchar firingScript[][48] PROGMEM = {
 //byte firingScript[][48] = {
   {1, 0, 121, 5, 0, 0, 128},                 // Arty Taco1
   {1, 1, 121, 5, 0, 1, 128},                 // Arty Taco2
@@ -287,7 +287,7 @@ char* textFiring = "firing!";
 // INIT
 //
 
-uint8_t command[commandLen] = {0};                      // initial payload contents. This is changed by the program.
+uint8_t command[48] = {0};                      // initial payload contents. This is changed by the program.
 
 SoftwareSerial nss(ssRx, ssTx);
 XBee xbee = XBee();
@@ -556,6 +556,27 @@ void setCharge(byte receiver, byte charge, bool setStatus) {
 }
       
 /*
+ * smartCancel sends a message to smart receivers telling them to cancel all orders.
+ * this is great for when the game is paused and you don't want receivers to ignite
+ * while the game is not running.
+ */
+void smartCancel() {
+  
+  command[0] = 67;  // C
+  command[1] = 78;  // N
+  command[2] = 128; // 128 is our end-of-line delimiter
+  
+  address64.setMsb(0x00000000);
+  address64.setLsb(0x0000FFFF);
+  
+  zbTx.setAddress64(address64);
+  
+  // send message
+  nss.println(" )) cancel");
+  xbee.send(zbTx);  
+}
+      
+/*
  * smartClear sends a messge to smart receivers, essentially saying, "clear everything."
  * It is "smart" in the sense that it only has to send one message to
  * the receivers which tells the receivers what to do. The "dumb" version of this is telling
@@ -584,7 +605,7 @@ void smartClear() {
  * determines the size of the command payload so we don't send any extra bytes after the 128
  */
 void smartSize() {
-  
+  // @todo this is a nice idea. See issue #2 on github.
 }
 
 
@@ -867,6 +888,8 @@ void keypadCheck(){
         case 'C':
           // if C is pressed, do stuff
           smartClear();
+          smartCancel();
+          displayThumb(0,1);
           break;
         
         case 'D':
@@ -896,8 +919,22 @@ void debugXbee(uint32_t info) {
   nss.println(info, HEX); 
 }
 
+/*
+ * displayThumb displays either a thumbs up or a thumbs down on the display.
+ * 
+ * @param byte pos  the position of the thumb on display (0-2)
+ * @param byte dir  the direction of the thumb. 1 for up, 0 for down.
+ */
+void displayThumb(byte pos, boolean dir) {
+  lcd.setCursor((13 + pos), 0);
+  if (dir) {
+    lcd.write(0);
+  } else {
+    lcd.write(1);
+  }
+}
 
-char notify1(char *message) {
+void notify1(char *message) {
   lcd.setCursor(0, 0);
   lcd.print("                "); 
   lcd.setCursor(0, 0);
@@ -905,7 +942,7 @@ char notify1(char *message) {
   nss.println(message);
 }
 
-char notify2(char *message) {
+void notify2(char *message) {
   lcd.setCursor(0, 1);
   lcd.print("                "); 
   lcd.setCursor(0, 1);
