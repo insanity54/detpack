@@ -86,7 +86,7 @@ const byte led = 13;
 
 
 // CONFIG
-boolean debugMode = 1;
+const boolean debugMode = 0;
 const byte lcdWidth = 16;                 // display width of LCD in characters
 const byte lcdHeight = 2;                 // display height of LCD in charaters
 const int splashTime = 50;                // time the splash text will display
@@ -173,7 +173,7 @@ char* firingScriptTitle[] = {
   "Arty Olympic3",
   "Taco4",
   "Olympic4",
-  "crazzy"
+  "barrage"
 };
 
 
@@ -262,12 +262,9 @@ const prog_uchar firingScript[][commandLen] PROGMEM = {
   {0, 3, 128},                               // Taco4
   {2, 3, 128},                               // Olympic4
 
-  {1,0, 121,1, 1,1, 121,1, 1,2, 121,1, 1,3, 121,1, 1,4, 121,1, 1,5, 128}, // crazzy  
-//  {1,0, 121,4, 0,0, 121,24, 1,1, 121,4, 2,0, 121,24, 1,2, 121,4, 0,1, 121,24, 
-// ^           v            ^           v            ^           v           
-
-//   1,3, 121,4, 2,1, 121,24, 1,4, 121,4, 0,2, 121,24, 1,5, 121,4, 2,2, 128} // barrage
-// ^           v            ^           v            ^           v            
+  //{1,0, 121,1, 1,1, 121,1, 1,2, 121,1, 1,3, 121,1, 1,4, 121,1, 1,5, 128}, // crazzy  
+  {1,0, 121,4, 0,0, 121,24, 1,1, 121,4, 2,0, 121,24, 1,2, 121,4, 0,1, 121,24, 
+   1,3, 121,4, 2,1, 121,24, 1,4, 121,4, 0,2, 121,24, 1,5, 121,4, 2,2, 128} // barrage
   
 //  {0,0,128},                         // Gas1
 //  {0,1,128},                         // Gas2
@@ -541,7 +538,7 @@ void setCharge(byte receiver, byte charge, bool setStatus) {
   
       // send command
       //nss.println("Sending remote AT request.");
-      nss.println("   send pay");
+      //nss.println("   send pay");
       xbee.send(remoteAtRequest);  
     }
     break;
