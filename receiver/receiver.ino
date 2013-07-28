@@ -64,7 +64,7 @@ uint8_t led = 13;                          // status LED
 uint8_t chargePin[] = { 2, 3, 4, 5, 6, 7}; // charges
 
 // CONFIG
-byte me = 2; // zero-index of this receiver's number. @todo make this automatic. see below or search for, "automatic receiver id"
+byte me = 0; // zero-index of this receiver's number. @todo make this automatic. see below or search for, "automatic receiver id"
 //boolean debugMode = 0;
 unsigned int ignitionHold = 4000;           // pause time after igntion before DIO pin goes back LOW
 const byte commandLen = 48;  // length of command payload.
@@ -530,10 +530,19 @@ void smartParse() {
         
         // determine payload type
         switch ( order1.getType() ) {
+        
+        case 6778:
+          // CN - Cancel All Orders
+          nss.println(">> CN");
+          memset(actionEnable, 0, sizeof(actionEnable)); // all orders disabled
+          charPos = commandLen; // stop parsing
+          break;
+          
         case 6865:
           // DA - De-Activate
           nss.println(">> DA");
-          // @todo activate DA somehow
+          deactivateCharges();
+          charPos = commandLen; // stop parsing
           break;
             
         case 7083:
@@ -753,20 +762,13 @@ void smartParse() {
 //  }
 //}
 
-///*
-// * Continually checks timers and deactivates charges that have reached alloted time
-// * @todo create charge status variable (consume less memory than array) for all charges so we can do an individual timer per charge
-// */
-//void deactivateCharges() {
-//  digitalWrite(led, LOW);
-//  nss.print("deactivating charge #");
-//  for (byte c = 0; c <= sizeof(chargePin); c++) {
-//    setCharge(c, 0);
-//    nss.println(c);
-//  }
-//  nss.println();
-//}
-//
-//void chargePause() {
-//  
-//}
+/*
+ * Deactivates all charges
+ * @todo is this the right way to do this? should deactivating charges be an order?
+ *       is this needed at all anymore?
+ */
+void deactivateCharges() {
+  for ( byte charge = 0; charge <= sizeof( chargePin ); charge++ ) {
+    setCharge( charge, 0 );
+  }
+}
