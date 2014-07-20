@@ -14,5 +14,12 @@ Future modes include:
 * Counter-Strike Bomb Diffusal
 * Strafe (simulates ground effects from aircraft strafe run)
 
+Wiki
+---
+
+Check out the [Wiki](https://github.com/insanity54/detpack/wiki) for parts list, setup, and installation information.
+
+Author
+---
 
 For more info on this project, contact Chris Grimmett chris@grimtech.net
